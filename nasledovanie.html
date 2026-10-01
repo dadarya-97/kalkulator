@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Калькулятор долей при наследовании по закону</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--text:#17191c;--muted:#69707a;--line:#e2e5e9;--accent:#503092;--accent2:#3f2479;--soft:#f5f0ff;--ok:#137333;--warn:#8a5a00}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.48 Arial,sans-serif}
+.app{max-width:760px;margin:28px auto;padding:0 16px 48px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:18px;font-weight:700}
+.logo{width:42px;height:42px;object-fit:contain;display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:0 5px 18px rgba(0,0,0,.04)}
+h1{font-size:28px;line-height:1.12;margin:0 0 12px}h2{font-size:21px;margin:0 0 16px}h3{font-size:16px;margin:18px 0 10px}
+.lead,.muted{color:var(--muted)}.lead{font-size:16px}.notice{background:#f7f7f8;border-left:3px solid #aeb4bc;padding:12px 14px;border-radius:8px;margin:16px 0}
+.warn{background:#fff8e8;border-left-color:#e0a100;color:#5d4300}.danger{background:var(--soft);border-left-color:var(--accent)}
+.progress{height:6px;background:#e7e9ec;border-radius:99px;overflow:hidden;margin:0 0 10px}.bar{height:100%;background:var(--accent);transition:.25s}.stepmeta{font-size:13px;color:var(--muted);margin-bottom:18px}
+.q{margin:18px 0}.q>label,.qlabel{display:block;font-weight:700;margin-bottom:9px}.options{display:grid;gap:8px}
+.option{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:11px 12px;cursor:pointer}.option:hover{border-color:#b8bdc4}.option input{margin-top:2px}
+input[type=number],input[type=text],select{width:100%;padding:11px 12px;border:1px solid #cfd3d8;border-radius:9px;font:inherit;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.person{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;background:#fbfbfc}
+.personhead{font-weight:700;margin-bottom:8px}.actions{display:flex;gap:10px;justify-content:space-between;margin-top:24px;flex-wrap:wrap}
+button{border:0;border-radius:9px;padding:11px 16px;font:700 14px Arial;cursor:pointer}.primary{background:var(--accent);color:#fff}.primary:hover{background:var(--accent2)}.secondary{background:#eceef1;color:#222}.linkbtn{background:transparent;color:var(--accent);padding-left:0}
+button:disabled{opacity:.45;cursor:not-allowed}.hidden{display:none!important}
+.resultPerson{border-top:1px solid var(--line);padding:15px 0}.share{font-size:20px;font-weight:800;margin:4px 0}.tag{display:inline-block;background:#f0f1f3;border-radius:99px;padding:4px 8px;font-size:12px;color:#555}
+details{border-top:1px solid var(--line);padding:14px 0}summary{font-weight:700;cursor:pointer}.laws a{color:#503092}
+.moneybox{background:#f7f7f8;border-radius:12px;padding:14px;margin:12px 0}.big{font-size:22px;font-weight:800}.small{font-size:12px;color:var(--muted)}
+@media(max-width:600px){.app{margin-top:12px}.card{padding:18px}h1{font-size:24px}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="brand"><img class="logo" src="https://yt3.googleusercontent.com/ytc/AIdro_nJieoFNt3-mAWyxUGKIpbZaz29NZgGT6J-j1RT3uDQbe4=s900-c-k-c0x00ffffff-no-rj" alt="Система Юрист"><div>Система Юрист</div></div>
+  <div id="root"></div>
+</div>
+<script>
+const S={
+ step:0, mode:'shares', personal:0, joint:'no', jointValue:0, deceasedJointShare:'1/2',
+ spouse:false, children:[], conceived:'no', mother:false,father:false,
+ siblings:[], grandparents:0, uncles:[], q4:0,q5a:0,q5b:0,q6a:0,q6b:0,q6c:0,
+ step7:0, dependents:[], depKnown:'no', preliminary:[], blocked:null
+};
+const root=document.getElementById('root');
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const n=v=>Math.max(0,Number(v)||0);
+function gcd(a,b){while(b){[a,b]=[b,a%b]}return Math.abs(a)}
+class F{constructor(a=0,b=1){let g=gcd(a,b)||1;this.a=a/g;this.b=b/g;if(this.b<0){this.a*=-1;this.b*=-1}} mul(o){return new F(this.a*o.a,this.b*o.b)} divInt(k){return new F(this.a,this.b*k)} str(){return this.b===1?`${this.a}`:`${this.a}/${this.b}`} pct(){return (100*this.a/this.b).toLocaleString('ru-RU',{maximumFractionDigits:2})+'%'}}
+function parseF(v){v=String(v||'').trim().replace(',','.');if(v.includes('/')){let [a,b]=v.split('/').map(Number);return b?new F(a,b):new F(1,2)}let x=Number(v.replace('%',''));if(v.includes('%'))x/=100;if(!isFinite(x)||x<=0||x>1)return new F(1,2);return new F(Math.round(x*1000000),1000000)}
+const rub=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
+function radio(name,val,label,checked){return `<label class="option"><input type="radio" name="${name}" value="${val}" ${checked?'checked':''}> <span>${label}</span></label>`}
+function shell(title,body,step,total=5){return `<div class="card">${step?`<div class="progress"><div class="bar" style="width:${step/total*100}%"></div></div><div class="stepmeta">Шаг ${step} из ${total}</div>`:''}<h2>${title}</h2>${body}</div>`}
+function nav(back=true,next=true,nextText='Продолжить'){return `<div class="actions">${back?'<button class="secondary" onclick="back()">Назад</button>':'<span></span>'}${next?`<button class="primary" onclick="next()">${nextText}</button>`:''}</div>`}
+function setCount(key,v){S[key]=n(v);render()}
+function addPeople(key,count,type){let old=S[key]||[];S[key]=Array.from({length:count},(_,i)=>old[i]||{name:`${type} ${i+1}`,status:'alive',desc:0});render()}
+function setPerson(key,i,field,v){S[key][i][field]=v;if(field==='status'&&v==='alive')S[key][i].desc=0;render()}
+function start(){S.step=1;render()} function back(){S.step=Math.max(0,S.step-1);render()} function next(){S.step++;render()}
+function stop(msg){S.blocked=msg;S.step=99;render()}
+function render(){
+ if(S.step===0){root.innerHTML=shell('',`<h1>Калькулятор долей при наследовании по закону</h1><p class="lead">Укажите родственников наследодателя и обстоятельства наследования. Калькулятор определит, кого призовут к наследованию по закону, учтет право представления и нетрудоспособных иждивенцев и рассчитает долю каждого наследника.</p><div class="notice">Калькулятор рассчитывает стандартное наследование по закону и исходит из того, что наследники принимают наследство. Завещание, наследственный договор, отказ, непринятие наследства, споры и другие специальные обстоятельства требуют отдельной оценки.</div><button class="primary" onclick="start()">Начать расчет</button>`);return}
+ if(S.step===99){root.innerHTML=shell('Эту ситуацию нельзя точно рассчитать автоматически',`<div class="notice danger">${esc(S.blocked)}</div><p>Результат зависит от дополнительных юридических обстоятельств. Введенные данные сохранены.</p>${nav(true,false)}`);return}
+ if(S.step===1) return renderEstate();
+ if(S.step===2) return renderQueue();
+ if(S.step===3) return renderDependents();
+ if(S.step===4) return renderReview();
+ if(S.step===5) return renderResult();
+}
+function renderEstate(){
+ let body=`<div class="q"><span class="qlabel">Хотите рассчитать только доли или также стоимость имущества?</span><div class="options">${radio('mode','shares','Только доли',S.mode==='shares')}${radio('mode','money','Доли и стоимость имущества',S.mode==='money')}</div></div>
+ ${S.mode==='money'?`<div class="q"><label>Стоимость имущества, которое принадлежало только наследодателю</label><input id="personal" type="number" min="0" value="${S.personal}"><div class="small">Например, имущество до брака, полученное в наследство или дар.</div></div>`:''}
+ <div class="q"><span class="qlabel">Есть ли совместное имущество супругов?</span><div class="options">${radio('joint','yes','Да',S.joint==='yes')}${radio('joint','no','Нет',S.joint==='no')}${radio('joint','unknown','Не знаю',S.joint==='unknown')}</div></div>
+ ${S.joint==='unknown'?'<div class="notice warn">Доли наследников можно рассчитать, но точная стоимость совместного имущества будет неизвестна.</div>':''}
+ ${S.joint==='yes'?`${S.mode==='money'?`<div class="q"><label>Стоимость совместного имущества супругов</label><input id="jointValue" type="number" min="0" value="${S.jointValue}"></div>`:''}<div class="q"><label>Доля наследодателя в совместном имуществе</label><select id="jointShare"><option value="1/2" ${S.deceasedJointShare==='1/2'?'selected':''}>1/2</option><option value="custom" ${S.deceasedJointShare!=='1/2'?'selected':''}>Другая доля</option></select>${S.deceasedJointShare!=='1/2'?`<input style="margin-top:8px" id="customShare" value="${esc(S.deceasedJointShare)}" placeholder="Например, 1/3 или 33,33%">`:''}<div class="small">По общему правилу — 1/2. Другую долю указывайте, только если ее размер уже определен.</div></div>`:''}
+ ${nav()}`;
+ root.innerHTML=shell('Наследственное имущество',body,1);
+ document.querySelectorAll('input[name=mode]').forEach(x=>x.onchange=e=>{S.mode=e.target.value;render()});
+ document.querySelectorAll('input[name=joint]').forEach(x=>x.onchange=e=>{S.joint=e.target.value;render()});
+ let p=document.getElementById('personal');if(p)p.oninput=e=>S.personal=n(e.target.value);
+ let j=document.getElementById('jointValue');if(j)j.oninput=e=>S.jointValue=n(e.target.value);
+ let js=document.getElementById('jointShare');if(js)js.onchange=e=>{S.deceasedJointShare=e.target.value==='custom'?'1/3':'1/2';render()};
+ let cs=document.getElementById('customShare');if(cs)cs.oninput=e=>S.deceasedJointShare=e.target.value;
+}
+function peopleEditor(key,label,repDepth=true){
+ let arr=S[key]; return arr.map((p,i)=>`<div class="person"><div class="personhead">${esc(p.name)}</div>
+ <select onchange="setPerson('${key}',${i},'status',this.value)">
+ <option value="alive" ${p.status==='alive'?'selected':''}>Жив на момент открытия наследства</option>
+ <option value="before" ${p.status==='before'?'selected':''}>Умер раньше наследодателя</option>
+ <option value="same" ${p.status==='same'?'selected':''}>Умер одновременно с наследодателем</option>
+ <option value="after" ${p.status==='after'?'selected':''}>Умер после открытия наследства</option></select>
+ ${(p.status==='before'||p.status==='same')&&repDepth?`<div class="q"><label>Сколько живых потомков наследует вместо него?</label><input type="number" min="0" value="${p.desc||0}" onchange="setPerson('${key}',${i},'desc',this.value)"></div>`:''}
+ </div>`).join('')
+}
+function firstQueueExists(){return S.spouse||S.mother||S.father||S.conceived==='yes'||S.children.some(p=>p.status==='alive'||((p.status==='before'||p.status==='same')&&n(p.desc)>0))}
+function secondQueueExists(){return S.siblings.some(p=>p.status==='alive'||((p.status==='before'||p.status==='same')&&n(p.desc)>0))||S.grandparents>0}
+function thirdQueueExists(){return S.uncles.some(p=>p.status==='alive'||((p.status==='before'||p.status==='same')&&n(p.desc)>0))}
+function activeQueue(){
+ if(firstQueueExists())return 1;if(secondQueueExists())return 2;if(thirdQueueExists())return 3;
+ if(S.q4>0)return 4;if(S.q5a+S.q5b>0)return 5;if(S.q6a+S.q6b+S.q6c>0)return 6;if(S.step7>0)return 7;return null
+}
+function renderQueue(){
+ let q=activeQueue();
+ let body=`<p class="muted">Укажите родственников и их статус на момент открытия наследства. Дальние очереди раскрываются только при отсутствии более близких.</p>
+ <h3>Первая очередь</h3>
+ <div class="q"><span class="qlabel">Зарегистрированный супруг</span><div class="options">${radio('spouse','yes','Да',S.spouse)}${radio('spouse','no','Нет',!S.spouse)}</div></div>
+ <div class="q"><label>Количество детей</label><input id="childCount" type="number" min="0" value="${S.children.length}"></div>${peopleEditor('children','Ребенок')}
+ <div class="q"><span class="qlabel">Был ли зачат при жизни ребенок, который родился живым после открытия наследства?</span><div class="options">${radio('conceived','yes','Да',S.conceived==='yes')}${radio('conceived','no','Нет',S.conceived==='no')}${radio('conceived','unknown','Не знаю',S.conceived==='unknown')}</div></div>
+ <div class="q"><span class="qlabel">Родители, живые на момент открытия наследства</span><label class="option"><input id="mother" type="checkbox" ${S.mother?'checked':''}> Мать</label><label class="option"><input id="father" type="checkbox" ${S.father?'checked':''}> Отец</label></div>`;
+ if(!firstQueueExists()){
+ body+=`<h3>Вторая очередь</h3><div class="q"><label>Количество братьев и сестер</label><input id="sibCount" type="number" min="0" value="${S.siblings.length}"></div>${peopleEditor('siblings','Брат/сестра')}<div class="q"><label>Количество живых дедушек и бабушек</label><input id="gp" type="number" min="0" max="4" value="${S.grandparents}"></div>`;
+ if(!secondQueueExists()){
+ body+=`<h3>Третья очередь</h3><div class="q"><label>Количество дядей и теть</label><input id="uncleCount" type="number" min="0" value="${S.uncles.length}"></div>${peopleEditor('uncles','Дядя/тетя')}`;
+ if(!thirdQueueExists())body+=`<h3>Четвертая–седьмая очереди</h3>
+ <div class="row"><div class="q"><label>Прадедушки и прабабушки</label><input id="q4" type="number" min="0" value="${S.q4}"></div>
+ <div class="q"><label>Двоюродные внуки/внучки</label><input id="q5a" type="number" min="0" value="${S.q5a}"></div>
+ <div class="q"><label>Двоюродные дедушки/бабушки</label><input id="q5b" type="number" min="0" value="${S.q5b}"></div>
+ <div class="q"><label>Двоюродные правнуки/правнучки</label><input id="q6a" type="number" min="0" value="${S.q6a}"></div>
+ <div class="q"><label>Двоюродные племянники/племянницы</label><input id="q6b" type="number" min="0" value="${S.q6b}"></div>
+ <div class="q"><label>Двоюродные дяди/тети</label><input id="q6c" type="number" min="0" value="${S.q6c}"></div>
+ <div class="q"><label>Пасынки, падчерицы, отчим, мачеха с действующим юридическим статусом</label><input id="q7" type="number" min="0" value="${S.step7}"></div></div>`;
+ }}
+ body+=nav();
+ root.innerHTML=shell('Кто остался после наследодателя',body,2);
+ document.querySelectorAll('input[name=spouse]').forEach(x=>x.onchange=e=>{S.spouse=e.target.value==='yes';render()});
+ document.querySelectorAll('input[name=conceived]').forEach(x=>x.onchange=e=>{S.conceived=e.target.value;if(e.target.value==='unknown'&&!S.preliminary.includes('conceived'))S.preliminary.push('conceived')});
+ let cc=document.getElementById('childCount');if(cc)cc.onchange=e=>addPeople('children',n(e.target.value),'Ребенок');
+ let sc=document.getElementById('sibCount');if(sc)sc.onchange=e=>addPeople('siblings',n(e.target.value),'Брат/сестра');
+ let uc=document.getElementById('uncleCount');if(uc)uc.onchange=e=>addPeople('uncles',n(e.target.value),'Дядя/тетя');
+ ['mother','father'].forEach(k=>{let el=document.getElementById(k);if(el)el.onchange=e=>{S[k]=e.target.checked;render()}});
+ [['gp','grandparents'],['q4','q4'],['q5a','q5a'],['q5b','q5b'],['q6a','q6a'],['q6b','q6b'],['q6c','q6c'],['q7','step7']].forEach(([id,k])=>{let el=document.getElementById(id);if(el)el.onchange=e=>{S[k]=n(e.target.value);render()}});
+ // stop death-after-opening
+ [...S.children,...S.siblings,...S.uncles].forEach(p=>{if(p.status==='after')setTimeout(()=>stop('Один из указанных наследников умер после открытия наследства. Нужно отдельно определить принятие наследства и возможную наследственную трансмиссию.'),0)});
+}
+function depCard(d,i){return `<div class="person"><div class="personhead">Иждивенец ${i+1}</div>
+ <div class="q"><label>Категория</label><select onchange="depSet(${i},'cat',this.value)">
+ <option value="relative" ${d.cat==='relative'?'selected':''}>Наследник 2–7 очереди / внук или потомок</option>
+ <option value="other" ${d.cat==='other'?'selected':''}>Не относится к указанным наследникам</option></select></div>
+ <div class="q"><label>Был нетрудоспособным на день открытия наследства?</label><select onchange="depSet(${i},'disabled',this.value)"><option value="yes" ${d.disabled==='yes'?'selected':''}>Да</option><option value="no" ${d.disabled==='no'?'selected':''}>Нет</option><option value="unknown" ${d.disabled==='unknown'?'selected':''}>Не знаю</option></select>
+ </div>
+ <div class="q"><label>Находился на иждивении не менее года?</label><select onchange="depSet(${i},'support',this.value)"><option value="yes" ${d.support==='yes'?'selected':''}>Да</option><option value="no" ${d.support==='no'?'selected':''}>Нет</option><option value="unknown" ${d.support==='unknown'?'selected':''}>Не знаю</option></select><div class="small">Полное содержание либо систематическая помощь, которая была постоянным и основным источником средств к существованию.</div></div>
+ ${d.cat==='other'?`<div class="q"><label>Проживал совместно с наследодателем не менее года?</label><select onchange="depSet(${i},'cohabit',this.value)"><option value="yes" ${d.cohabit==='yes'?'selected':''}>Да</option><option value="no" ${d.cohabit==='no'?'selected':''}>Нет</option><option value="unknown" ${d.cohabit==='unknown'?'selected':''}>Не знаю</option></select></div>`:''}
+ </div>`}
+function depSet(i,k,v){S.dependents[i][k]=v;render()}
+function renderDependents(){
+ let body=`<p>После определения основной очереди нужно отдельно проверить нетрудоспособных иждивенцев.</p>
+ <div class="q"><span class="qlabel">Были ли у наследодателя другие нетрудоспособные лица, которых он содержал не менее года до смерти?</span><div class="options">${radio('depKnown','yes','Да',S.depKnown==='yes')}${radio('depKnown','no','Нет',S.depKnown==='no')}${radio('depKnown','unknown','Не знаю',S.depKnown==='unknown')}</div></div>
+ ${S.depKnown==='unknown'?'<div class="notice warn">Итог будет предварительным: доли могут измениться.</div>':''}
+ ${S.depKnown==='yes'?S.dependents.map(depCard).join('')+`<button class="secondary" onclick="addDep()">+ Добавить иждивенца</button>`:''}${nav()}`;
+ root.innerHTML=shell('Нетрудоспособные иждивенцы',body,3);
+ document.querySelectorAll('input[name=depKnown]').forEach(x=>x.onchange=e=>{S.depKnown=e.target.value;if(S.depKnown==='yes'&&!S.dependents.length)addDep();else render()});
+}
+function addDep(){S.dependents.push({cat:'relative',disabled:'unknown',support:'unknown',cohabit:'unknown'});render()}
+function renderReview(){
+ let aq=activeQueue();let body=`<p>Проверьте исходные данные перед расчетом.</p>
+ <div class="moneybox"><div class="small">Призванная очередь по введенным данным</div><div class="big">${aq?aq+'-я очередь':'обычные наследники 1–7 очередей не найдены'}</div></div>
+ <p><b>Супруг:</b> ${S.spouse?'да':'нет'} · <b>детей:</b> ${S.children.length} · <b>родителей:</b> ${(S.mother?1:0)+(S.father?1:0)}</p>
+ <p><b>Иждивенцы:</b> ${S.depKnown==='yes'?S.dependents.length:S.depKnown==='unknown'?'неизвестно':'нет'}</p>
+ ${nav(true,true,'Рассчитать доли')}`;
+ root.innerHTML=shell('Проверка данных',body,4);
+}
+function units(){
+ let aq=activeQueue(), u=[],excluded=[];
+ const add=(name,reason)=>u.push({name,reason,kind:'direct'});
+ const branch=(name,count,reason)=>u.push({name,reason,kind:'branch',count});
+ if(aq===1){
+  if(S.spouse)add('Супруг','Наследник первой очереди.');
+  S.children.forEach((p,i)=>{if(p.status==='alive')add(`Ребенок ${i+1}`,'Наследник первой очереди.');else if((p.status==='before'||p.status==='same')&&n(p.desc)>0)branch(`Ветвь ребенка ${i+1}`,n(p.desc),'Потомки наследуют по праву представления вместо умершего ребенка.')});
+  if(S.conceived==='yes')add('Ребенок, родившийся после открытия наследства','Был зачат при жизни наследодателя и родился живым после открытия наследства.');
+  if(S.mother)add('Мать','Наследник первой очереди.');if(S.father)add('Отец','Наследник первой очереди.');
+ } else if(aq===2){
+  S.siblings.forEach((p,i)=>{if(p.status==='alive')add(`Брат/сестра ${i+1}`,'Наследник второй очереди.');else if((p.status==='before'||p.status==='same')&&n(p.desc)>0)branch(`Ветвь брата/сестры ${i+1}`,n(p.desc),'Племянники и племянницы наследуют по праву представления.')});
+  for(let i=0;i<S.grandparents;i++)add(`Дедушка/бабушка ${i+1}`,'Наследник второй очереди.');
+ } else if(aq===3){
+  S.uncles.forEach((p,i)=>{if(p.status==='alive')add(`Дядя/тетя ${i+1}`,'Наследник третьей очереди.');else if((p.status==='before'||p.status==='same')&&n(p.desc)>0)branch(`Ветвь дяди/тети ${i+1}`,n(p.desc),'Двоюродные братья и сестры наследуют по праву представления.')});
+ } else {
+  let counts=aq===4?[['Прадедушка/прабабушка',S.q4]]:aq===5?[['Двоюродный внук/внучка',S.q5a],['Двоюродный дедушка/бабушка',S.q5b]]:aq===6?[['Двоюродный правнук/правнучка',S.q6a],['Двоюродный племянник/племянница',S.q6b],['Двоюродный дядя/тетя',S.q6c]]:aq===7?[['Наследник седьмой очереди',S.step7]]:[];
+  counts.forEach(([label,c])=>{for(let i=0;i<c;i++)add(`${label} ${i+1}`,`Наследник ${aq}-й очереди.`)})
+ }
+ if(S.depKnown==='yes')S.dependents.forEach((d,i)=>{
+  let ok=d.disabled==='yes'&&d.support==='yes'&&(d.cat!=='other'||d.cohabit==='yes');
+  let hasUnknown=d.disabled==='unknown'||d.support==='unknown'||(d.cat==='other'&&d.cohabit==='unknown');
+
+  if(ok){
+    add(`Иждивенец ${i+1}`,aq
+      ? `Нетрудоспособный иждивенец наследует вместе и наравне с наследниками призванной очереди.`
+      : `Нетрудоспособный иждивенец наследует как наследник восьмой очереди.`);
+  } else if(hasUnknown){
+    excluded.push({
+      name:`Иждивенец ${i+1}`,
+      reason:'Недостаточно данных, чтобы определить, наследует ли этот человек как нетрудоспособный иждивенец.',
+      uncertain:true
+    });
+  } else if(d.disabled==='no'){
+    excluded.push({
+      name:`Иждивенец ${i+1}`,
+      reason:'Не включен в расчет: на день открытия наследства человек не был нетрудоспособным.'
+    });
+  } else if(d.support==='no'){
+    excluded.push({
+      name:`Иждивенец ${i+1}`,
+      reason:'Не включен в расчет: человек не находился на иждивении наследодателя не менее года до его смерти.'
+    });
+  } else if(d.cat==='other'&&d.cohabit==='no'){
+    excluded.push({
+      name:`Иждивенец ${i+1}`,
+      reason:'Не включен в расчет: человек не проживал совместно с наследодателем не менее года до его смерти.'
+    });
+  }
+ });
+ return {aq,u,excluded};
+}
+function renderResult(){
+ let {aq,u,excluded}=units();
+ let unknown=S.depKnown==='unknown'||S.conceived==='unknown'||S.dependents.some(d=>d.disabled==='unknown'||d.support==='unknown'||(d.cat==='other'&&d.cohabit==='unknown'));
+ if(!u.length){root.innerHTML=shell('Калькулятор не нашел наследников по закону',`<div class="notice">По указанным данным не обнаружены наследники, которых можно автоматически призвать к наследованию. Нужно отдельно проверить правила о выморочном имуществе.</div>${nav(true,false)}<div class="actions"><button class="primary" onclick="resetAll()">Рассчитать заново</button></div>`,5);return}
+ let base=new F(1,u.length), people=[];
+ u.forEach(x=>{if(x.kind==='branch'){for(let i=0;i<x.count;i++)people.push({name:`Потомок ${i+1} (${x.name.toLowerCase()})`,share:base.divInt(x.count),reason:x.reason})}else people.push({name:x.name,share:base,reason:x.reason})});
+ let jointShare=parseF(S.deceasedJointShare), estate=S.mode==='money'?(S.personal+(S.joint==='yes'?S.jointValue*jointShare.a/jointShare.b:0)):null;
+ let spouseOwn=S.mode==='money'&&S.joint==='yes'?S.jointValue*(1-jointShare.a/jointShare.b):0;
+ let cards=people.map(p=>`<div class="resultPerson"><h3>${esc(p.name)}</h3><div class="share">${p.share.str()} · ${p.share.pct()}${estate!==null?' · '+rub(estate*p.share.a/p.share.b):''}</div><div>${esc(p.reason)}</div>${p.name==='Супруг'&&spouseOwn?`<div class="small" style="margin-top:7px">Собственная доля супруга в совместном имуществе: ${rub(spouseOwn)}. Она не является наследством.</div>`:''}</div>`).join('');
+ let explain=`В расчете ${u.length} расчетн${u.length===1?'ая единица':'ых единицы'}. Базовая доля составляет ${base.str()} наследства. Ветви по праву представления сначала получают одну базовую долю, затем она делится между допустимыми потомками.`;
+ let body=`${unknown?'<div class="notice warn"><b>Предварительный расчет.</b> Доли могут измениться после уточнения неизвестных обстоятельств.</div>':''}
+ <div class="moneybox"><div class="small">К наследованию призвана</div><div class="big">${aq?aq+'-я очередь':'8-я очередь'}</div>${estate!==null?`<div style="margin-top:8px">Наследственная масса: <b>${rub(estate)}</b></div>`:''}</div>
+ ${S.mode==='money'&&S.joint==='yes'?`<h3>Сначала определяется доля пережившего супруга</h3><p>Собственная доля пережившего супруга: <b>${rub(spouseOwn)}</b>. Она не входит в наследственную массу.</p>`:''}
+ ${cards}<h3>Как рассчитали доли</h3><p>${explain}</p>
+ ${excluded.length?`<details><summary>${excluded.some(x=>x.uncertain)?'Кто не вошел в расчет или требует уточнения':'Кто не вошел в расчет'}</summary>${excluded.map(x=>`<p><b>${esc(x.name)}</b><br>${esc(x.reason)}</p>`).join('')}</details>`:''}
+ <details class="laws"><summary>Почему так: основные нормы</summary><p>Ст. 1114, 1116, 1141–1148, 1150 ГК РФ; Постановление Пленума Верховного Суда РФ от 29.05.2012 № 9.</p></details>
+ <div class="notice">Расчет показывает распределение наследства по указанным данным и общим правилам наследования по закону. Фактический состав наследников, имущества и размер долей могут зависеть от обстоятельств конкретного дела.</div>
+ <div class="actions"><button class="secondary" onclick="S.step=2;render()">Изменить данные</button><button class="primary" onclick="resetAll()">Рассчитать заново</button></div>`;
+ root.innerHTML=shell('Кто получит наследство',body,5);
+}
+function resetAll(){location.reload()}
+render();
+</script>
+</body>
+</html>
